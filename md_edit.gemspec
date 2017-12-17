@@ -1,7 +1,8 @@
 Gem::Specification.new do |s|
   s.name = 'md_edit'
-  s.version = '0.1.1'
-  s.summary = 'Find a section of a markdown document to edit using the name of the heading'
+  s.version = '0.1.2'
+  s.summary = 'Find a section of a markdown document to edit using the ' + 
+      'name of the heading'
   s.authors = ['James Robertson']
   s.files = Dir['lib/md_edit.rb']
   s.add_runtime_dependency('line-tree', '~> 0.5', '>=0.5.8')

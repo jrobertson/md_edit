@@ -17,18 +17,18 @@ class MdEdit
       
       parse s
 
-      h =  @h.keys.inject({}) do |r,x|
+      @h =  @sections.keys.inject({}) do |r,x|
         r.merge(x.sub(/^#+ +/,'').downcase => 5 - x.count('#'))
       end      
       
-      @pl = PhraseLookup.new h
+      @pl = PhraseLookup.new @h
       
     end
   end
 
   def find(s)
-    key = @h.keys.grep(/#{s.downcase}/i).first
-    [key, @h[key]]
+    key = @sections.keys.grep(/#{s.downcase}/i).first
+    [key, @sections[key]]
   end
     
   def query(s)    
@@ -62,7 +62,7 @@ class MdEdit
     h = {}
 
     a4 = scan a3, h
-    @h = h  
+    @sections = h  
     
   end
  
