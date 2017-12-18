@@ -25,6 +25,30 @@ class MdEdit
     
   end
   
+  def create(s)
+    
+    @s << "\n\n" + s
+    load_sections(@s)        
+    save()
+    
+    :created    
+  end
+  
+  # specify a heeading to delete a section
+  #
+  def delete(s)
+    
+    key = @sections.keys.grep(/#{s.downcase}/i).first
+    old_value = @sections[key].flatten.join("\n\n")
+    old_section =  key + "\n\n" + old_value
+    
+    @s.sub!(old_section, '')    
+    load_sections(@s)        
+    save()
+    
+    :deleted
+  end  
+  
   def update(raw_value, heading: nil )
     
     value = raw_value.gsub(/\r/,'')
