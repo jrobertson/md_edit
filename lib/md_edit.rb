@@ -25,23 +25,32 @@ class MdEdit
     
   end
   
-  def update(heading, value)
+  def update(raw_value, heading: nil )
+    
+    value = raw_value.gsub(/\r/,'')
 
-    key = @sections.keys.grep(/#{heading.downcase}/i).first
+    title = heading ? heading : value.lines.first.chomp
+    key = @sections.keys.grep(/#{title.downcase}/i).first
+    return unless key
 
     old_value = @sections[key].flatten.join("\n\n")
-    @s.sub!(key + "\n\n" + old_value, value)
-    load_sections(@s)
+    old_section =  value =~ /^#+/ ? key + "\n\n" + old_value : old_value 
+    
+    @s.sub!(old_section, value)    
+    load_sections(@s)    
     
     save()
+    
+    :updated
     
   end
   
   alias edit update
 
-  def find(s)
+  def find(s, heading: true)
     key = @sections.keys.grep(/#{s.downcase}/i).first
-    [key, @sections[key]]
+    a = [key, @sections[key]]
+    heading ? a.join("\n\n") : a
   end
     
   def query(s)    
