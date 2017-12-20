@@ -26,8 +26,9 @@ class MdEdit
   end
   
   def create(s)
-    
-    @s << "\n\n" + s
+        
+    @s << "\n\n" + s.sub(/^(?=\w)/,'## ').sub(/#+ [a-z]/){|x| x.upcase}\
+        .sub(/(?!=^\n)$/,"\n\n")
     load_sections(@s)        
     save()
     
@@ -51,7 +52,7 @@ class MdEdit
   
   def update(raw_value, heading: nil )
     
-    value = raw_value.gsub(/\r/,'')
+    value = raw_value.gsub(/\r/,'') + "\n"
 
     title = heading ? heading : value.lines.first.chomp
     key = @sections.keys.grep(/#{title.downcase}/i).first
@@ -72,7 +73,8 @@ class MdEdit
   alias edit update
 
   def find(s, heading: true)
-    key = @sections.keys.grep(/#{s.downcase}/i).first
+    key = @sections.keys.reverse.grep(/#{s.downcase}/i).first
+    return unless key
     a = [key, @sections[key]]
     heading ? a.join("\n\n") : a
   end
@@ -105,7 +107,7 @@ class MdEdit
     end      
     
     @pl = PhraseLookup.new @h        
-    @s = s
+    @s = s + "\n\n"
     
   end
     
