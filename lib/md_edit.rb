@@ -15,10 +15,15 @@ class MdEdit
   #
   def initialize(md)
     
-    s, @filename = if md.lines.length == 1 and File.exists? md then
-      [File.read(md), md]
+    s, @filename = if md.lines.length == 1 then
+
+      File.write(md, "# Thoughts\n\n") unless File.exists? md 
+      File.exists?(md) ? [File.read(md), md] : md
+
     else
+
       md
+
     end
     
     load_sections(s)
