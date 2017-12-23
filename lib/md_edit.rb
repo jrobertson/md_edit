@@ -13,7 +13,9 @@ class MdEdit
   
   # pass in an MD document
   #
-  def initialize(md)
+  def initialize(md, debug: false)
+    
+    @debug = debug
     
     s, @filename = if md.lines.length == 1 then
 
@@ -45,8 +47,8 @@ class MdEdit
   def delete(s)
     
     key = @sections.keys.grep(/#{s.downcase}/i).first
-    old_value = @sections[key].flatten.join("\n\n")
-    old_section =  key + "\n\n" + old_value
+    old_value = @sections[key].flatten.join
+    old_section =  key + old_value
     
     @s.sub!(old_section, '')    
     load_sections(@s)        
@@ -57,16 +59,19 @@ class MdEdit
   
   def update(raw_value, heading: nil )
     
-    value = raw_value.gsub(/\r/,'') + "\n"
+    value = raw_value.gsub(/\r/,'')
 
     title = heading ? heading : value.lines.first.chomp
     key = @sections.keys.grep(/#{title.downcase}/i).first
     return unless key
 
-    old_value = @sections[key].flatten.join("\n\n")
-    old_section =  value =~ /^#+/ ? key + "\n\n" + old_value : old_value 
-    
-    @s.sub!(old_section, value)    
+    old_value = @sections[key].flatten.join
+    puts 'old_value: ' + old_value.inspect if @debug
+    old_section =  value =~ /^#+/ ? key + old_value : old_value 
+    puts 'old_section: ' + old_section.inspect if @debug
+
+    @s.sub!(old_section, value + "\n")
+    puts '@s: ' + @s.inspect if @debug    
     load_sections(@s)    
     
     save()
@@ -80,8 +85,8 @@ class MdEdit
   def find(s, heading: true)
     key = @sections.keys.reverse.grep(/#{s.downcase}/i).first
     return unless key
-    a = [key, @sections[key]]
-    heading ? a.join("\n\n") : a
+    a = [key, @sections[key].join]
+    heading ? a.join : a
   end
     
   def query(s)    
@@ -103,7 +108,7 @@ class MdEdit
   def load_sections(raw_s)
     
     # strip out any new lines gaps which are greater than 1    
-    s = raw_s.strip.gsub(/\n\s*\n\s*\n\s*/,"\n\n")
+    s = raw_s #.strip.gsub(/\n\s*\n\s*\n\s*/,"\n\n")
     
     @sections = parse s
 
@@ -127,14 +132,14 @@ class MdEdit
 
       lines = x.lstrip.lines
       lines.first.prepend('  ' * indent) +
-        lines[1..-1].map {|y| ('  ' * indent) + '  ' + y}.join + "\n"
+        lines[1..-1].map {|y| ('  ' * indent) + '  ' + y}.join 
     end
 
-    a3 = LineTree.new(a2.join).to_a
+    a3 = LineTree.new(a2.join, ignore_blank_lines: false, ignore_newline: false).to_a
 
     h = {}
     a4 = scan a3, h
-    
+
     return h  
     
   end
@@ -147,16 +152,16 @@ class MdEdit
 
     a.map do |x|
 
-      head = x.first
+      head = x.flatten.join[/^[^\n]+/]
 
       if head =~ /#/ then
         
         r = scan(x[1..-1], h)
-        h[head] = r
+        h[head] = ["\n"] + r
         [head, r]
-        
+
       else
-        x.first
+        x.flatten.join
       end
 
     end
