@@ -11,7 +11,7 @@ class MdEdit
 
   attr_reader :sections
   
-  # pass in an MD document
+  # pass in a Markdown document or a Markdown filename
   #
   def initialize(md, debug: false)
     
@@ -57,6 +57,8 @@ class MdEdit
     :deleted
   end  
   
+  # update a section by heading title e.g. ## To-do\n\n[ ] Vacuum the bedroom
+  #
   def update(raw_value, heading: nil )
     
     value = raw_value.gsub(/\r/,'')
@@ -70,7 +72,7 @@ class MdEdit
     old_section =  value =~ /^#+/ ? key + old_value : old_value 
     puts 'old_section: ' + old_section.inspect if @debug
 
-    @s.sub!(old_section, value + "\n")
+    @s.sub!(old_section, value)
     puts '@s: ' + @s.inspect if @debug    
     load_sections(@s)    
     
@@ -117,26 +119,27 @@ class MdEdit
     end      
     
     @pl = PhraseLookup.new @h        
-    @s = s + "\n\n"
+    @s = s 
     
   end
     
   def parse(s)
-
-    a = s.split(/(?=\n#+)/)
+    
+    a = s.split(/(?<=\n)(?=#+)/)
 
     a2 = a.map.with_index do |x, i|
 
       # get the indentation level
       indent = x[/^#+/].count('#') - 1
 
-      lines = x.lstrip.lines
+      lines = x.lines
       lines.first.prepend('  ' * indent) +
         lines[1..-1].map {|y| ('  ' * indent) + '  ' + y}.join 
     end
 
+    puts "a2.join: \n" + a2.join if @debug
     a3 = LineTree.new(a2.join, ignore_blank_lines: false, ignore_newline: false).to_a
-
+    puts 'a3: ' + a3.inspect if @debug
     h = {}
     a4 = scan a3, h
 
@@ -149,22 +152,27 @@ class MdEdit
   end
  
   def scan(a, h={})
-
+    
     a.map do |x|
 
-      head = x.flatten.join[/^[^\n]+/]
+      head = x.first
 
-      if head =~ /#/ then
-        
+      if head =~ /^#/ then
+                
         r = scan(x[1..-1], h)
-        h[head] = ["\n"] + r
+        
+        h[head[/^[^\n]+/]] =  ["\n"] + r
+
         [head, r]
 
+      elsif x.length > 1
+        [head] + scan(x[1..-1])
       else
         x.flatten.join
       end
 
     end
+
   end  
 
 end
