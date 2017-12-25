@@ -13,13 +13,13 @@ class MdEdit
   
   # pass in a Markdown document or a Markdown filename
   #
-  def initialize(md, debug: false)
+  def initialize(md, debug: false, root: 'Thoughts')
     
     @debug = debug
     
     s, @filename = if md.lines.length == 1 then
 
-      File.write(md, "# Thoughts\n\n") unless File.exists? md 
+      File.write(md, "# #{root}\n\n") unless File.exists? md 
       File.exists?(md) ? [File.read(md), md] : md
 
     else
@@ -48,7 +48,8 @@ class MdEdit
     
     key = @sections.keys.grep(/#{s.downcase}/i).first
     old_value = @sections[key].flatten.join
-    old_section =  key + old_value
+    heading = last_heading(key)
+    old_section =  heading + old_value
     
     @s.sub!(old_section, '')    
     load_sections(@s)        
@@ -63,13 +64,17 @@ class MdEdit
     
     value = raw_value.gsub(/\r/,'')
 
-    title = heading ? heading : value.lines.first.chomp
+    title = (heading ? heading : value.lines.first.chomp)[/#+ +(.*)/,1]
+
     key = @sections.keys.grep(/#{title.downcase}/i).first
+
     return unless key
 
     old_value = @sections[key].flatten.join
     puts 'old_value: ' + old_value.inspect if @debug
-    old_section =  value =~ /^#+/ ? key + old_value : old_value 
+
+    heading = last_heading(key)
+    old_section =  value =~ /^#+/ ? heading + old_value : old_value 
     puts 'old_section: ' + old_section.inspect if @debug
 
     @s.sub!(old_section, value)
@@ -85,9 +90,14 @@ class MdEdit
   alias edit update
 
   def find(s, heading: true)
-    key = @sections.keys.reverse.grep(/#{s.downcase}/i).first
+    
+    key = @sections.keys.grep(/#{s.downcase}/i).first
     return unless key
-    a = [key, @sections[key].join]
+    
+    headings = key.lines.first.split(/ > /)
+    title = "%s %s" % ['#' * headings.length, headings.last]
+    a = [title, @sections[key].join]
+    
     heading ? a.join : a
   end
     
@@ -100,12 +110,43 @@ class MdEdit
   def to_h()
     @h
   end
+  
+  def to_outline(bullets: false)
+    
+    a = indentor(@s.scan(/^#+ [^\n]+/).join("\n"))
+                        .lines.map {|x| x.sub(/#+ +/,'')}
+    bullets ? a.map{|x| x.sub(/\b/,'- ')} : a.join
+    
+  end
 
   def to_s()
     @s
   end
   
   private
+  
+  def indentor(s)
+    
+    a = s.split(/(?<=\n)(?=#+)/)
+
+    a.map.with_index do |x, i|
+
+      # get the indentation level
+      indent = x[/^#+/].count('#') - 1
+
+      lines = x.lines
+      lines.first.prepend('  ' * indent) +
+        lines[1..-1].map {|y| ('  ' * indent) + '  ' + y}.join 
+    end.join
+    
+  end
+  
+  def last_heading(key)
+    
+    a = key.lines.first.split(/ > /)
+    "%s %s" % ['#' * a.length, a.last]
+    
+  end
   
   def load_sections(raw_s)
     
@@ -123,25 +164,14 @@ class MdEdit
     
   end
     
-  def parse(s)
+  def parse(markdown)
     
-    a = s.split(/(?<=\n)(?=#+)/)
-
-    a2 = a.map.with_index do |x, i|
-
-      # get the indentation level
-      indent = x[/^#+/].count('#') - 1
-
-      lines = x.lines
-      lines.first.prepend('  ' * indent) +
-        lines[1..-1].map {|y| ('  ' * indent) + '  ' + y}.join 
-    end
-
-    puts "a2.join: \n" + a2.join if @debug
-    a3 = LineTree.new(a2.join, ignore_blank_lines: false, ignore_newline: false).to_a
-    puts 'a3: ' + a3.inspect if @debug
+    s = indentor(markdown)
+    puts "s: \n" + s if @debug
+    a = LineTree.new(s, ignore_blank_lines: false, ignore_newline: false).to_a
+    puts 'a: ' + a.inspect if @debug
     h = {}
-    a4 = scan a3, h
+    scan a, h
 
     return h  
     
@@ -151,22 +181,25 @@ class MdEdit
     File.write @filename, @s if @filename
   end
  
-  def scan(a, h={})
+  def scan(a, h={}, trail=[])
     
     a.map do |x|
 
-      head = x.first
+      raw_head = x.first
 
-      if head =~ /^#/ then
-                
-        r = scan(x[1..-1], h)
+      if raw_head =~ /^#/ then
+
+        head = raw_head[/^[^\n]+/]              
         
-        h[head[/^[^\n]+/]] =  ["\n"] + r
+        fullkey = trail + [head[/#+ +(.*)/,1]]
+        key = fullkey.join(" > ")
+        h[key] = nil
+        r = scan(x[1..-1], h, fullkey)      
+
+        h[key] =  ["\n"] + r
 
         [head, r]
 
-      elsif x.length > 1
-        [head] + scan(x[1..-1])
       else
         x.flatten.join
       end
@@ -174,5 +207,6 @@ class MdEdit
     end
 
   end  
+
 
 end
