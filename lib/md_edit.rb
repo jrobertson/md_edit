@@ -7,9 +7,12 @@ require 'line-tree'
 require 'phrase_lookup'
 
 
+IGNOREWORDS = ['or', 'the', 'of', 'a', 'if', 'to', 'and', 
+                'in', 'is', 'are', 'as', 'it', 'at']
+
 class MdEdit
 
-  attr_reader :sections
+  attr_reader :sections, :phraseslookup
   
   # pass in a Markdown document or a Markdown filename
   #
@@ -101,15 +104,70 @@ class MdEdit
     heading ? a.join : a
   end
     
-  def query(s)    
-    @pl.q s    
+  def query(s, full_trail: false, limit: 10)    
+    
+    puts 'query() s: ' + s.inspect if @debug
+    
+    results = []
+    
+    r = @headingslookup.q s  
+    
+    if r and r.any? then
+      
+      results = if full_trail then
+        r
+      else
+        r.map{|x| x.split(' > ')[1..-1].join(' > ')}.reject(&:empty?)
+      end
+      
+    end
+    
+      
+    r2 = @phraseslookup.q s, search_tags: true
+    
+    if r2 and r2.any? then
+      
+      a = r2.sort_by {|x| -x.length} 
+      
+      # attempt to remove duplicate results from the 1 section
+
+      a2 = a.group_by {|x| x[/\[[^\]]+\]/]}
+
+      a2.each do |k,v|
+        
+        s4 = v.first[/\]\s*(.*)/mi,1]          
+
+        index = s4 =~ /#{s}/mi
+        
+        s2 = make_snippet(s4, index, words: [2,2])          
+        
+        v[1..-1].each do |x| 
+          
+          s5 = x[/\]\s*(.*)/,1]
+          index2 = s5 =~ /#{s}/
+          
+          if index2 then
+            s3 = make_snippet(s5, index2, words: [2,2])
+            v.delete x if s2 =~ /#{s3}/
+          else
+            v.delete x
+          end
+        end
+
+      end
+
+    end
+    
+    if a2 then
+      phrases_found = a2.values.flatten(1)
+      results.concat phrases_found if phrases_found    
+    end
+
+    results.take limit
+
   end    
   
   alias q query
-  
-  def to_h()
-    @h
-  end
   
   def to_outline(bullets: false)
     
@@ -124,6 +182,40 @@ class MdEdit
   end
   
   private
+  
+  # returns a hash object; each key contains the heading as well as a phrase
+  #
+  def build_keyword_list(s, heading)
+    
+    a = s.split.uniq.flat_map do |raw_word|
+
+      i, pos = 0, []
+
+      w = raw_word[/\w{2,}/]
+      
+      next if IGNOREWORDS.include? w
+      next unless w
+
+      (pos << (s[i..-1] =~ /#{w}/i); i += pos[-1] + 1) while s[i..-1][/#{w}/i]
+
+      pos[1..-1].inject([pos[0]]) {|r,x| r << r.last + x + 1 }
+
+      pos.map do |x| 
+        
+        start = x-15
+        start = 0 if start < 0
+        snippet = make_snippet(s, start)
+        
+        "[%s] %s | %s %s" % [heading, snippet, w.downcase, 
+                             heading.scan(/\w+/).join(' ').downcase]
+      end
+
+
+    end
+    
+    a
+    
+  end
   
   def indentor(s)
     
@@ -148,20 +240,38 @@ class MdEdit
     
   end
   
-  def load_sections(raw_s)
-    
-    # strip out any new lines gaps which are greater than 1    
-    s = raw_s #.strip.gsub(/\n\s*\n\s*\n\s*/,"\n\n")
+  def load_sections(s)
     
     @sections = parse s
 
-    @h =  @sections.keys.inject({}) do |r,x|
+    h =  @sections.keys.inject({}) do |r,x|
       r.merge(x.sub(/^#+ +/,'').downcase => 5 - x.count('#'))
     end      
-    
-    @pl = PhraseLookup.new @h        
+
+    @headingslookup = PhraseLookup.new h
     @s = s 
     
+    phrases = @sections.flat_map do |heading, raw_value|
+
+      a = raw_value.take_while {|x| x.is_a? String}
+
+      next unless a and a.join.strip.length > 0
+      #next if a.nil? or a.join.strip.empty?
+      build_keyword_list(a.join.strip, heading).compact.map do |s|
+        [s, 4 - heading.count('>')]
+      end
+      
+    end
+
+    @phraseslookup = PhraseLookup.new phrases.compact.to_h
+    
+  end
+  
+  def make_snippet(raw_s, start, words: [2, 8])
+    
+    s = raw_s.gsub(/\n/,' ')
+    take_words_behind(s[0..start], words: words[0]) + 
+        take_words(s[start+1..-1], words: words[-1])
   end
     
   def parse(markdown)
@@ -206,7 +316,23 @@ class MdEdit
 
     end
 
-  end  
+  end
+
+
+  def take_words(s, words: 8)
+
+    r = s[/^(?:\S+\s+){#{words}}/m]
+    r ? r : s
+
+  end
+
+  def take_words_behind(s, words: 2)
+
+    r = s[/(?:\s+\S+){#{words}}$/m]
+    r ? r : s
+
+  end
+  
 
 
 end
