@@ -159,7 +159,19 @@ class MdEdit
     end
     
     if a2 then
-      phrases_found = a2.values.flatten(1)
+      
+      phrases_found = a2.values.flatten(1).map do |x|
+                
+        raw_heading, phrase = x.split(/\]\s+/,2)
+        
+        if raw_heading =~ / > / then
+          heading = raw_heading[/(?<=\[)[^\]]+/].split(' > ')[1..-1].join(' > ')
+          "[%s] %s" % [heading, phrase]
+        else
+          x
+        end
+        
+      end
       results.concat phrases_found if phrases_found    
     end
 
@@ -175,6 +187,10 @@ class MdEdit
                         .lines.map {|x| x.sub(/#+ +/,'')}
     bullets ? a.map{|x| x.sub(/\b/,'- ')} : a.join
     
+  end
+  
+  def to_h()
+    @h
   end
 
   def to_s()
@@ -249,6 +265,7 @@ class MdEdit
     end      
 
     @headingslookup = PhraseLookup.new h
+    @h = h.to_a.map {|k,v| [k.split(' > ').last, v]}.to_h
     @s = s 
     
     phrases = @sections.flat_map do |heading, raw_value|
