@@ -94,7 +94,8 @@ class MdEdit
 
   def find(s, heading: true)
     
-    key = @sections.keys.grep(/#{s.downcase}/i).first
+    key = @sections.keys\
+        .grep(/#{s.downcase.gsub('(','\(').gsub(')','\)')}/i).first
     return unless key
     
     headings = key.lines.first.split(/ > /)
