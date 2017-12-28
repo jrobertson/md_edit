@@ -160,20 +160,38 @@ class MdEdit
     end
     
     if a2 then
+            
+      h = a2.values.flatten(1).group_by {|x| x[/\[[^\]]+\]/]}
+
       
-      phrases_found = a2.values.flatten(1).map do |x|
-                
-        raw_heading, phrase = x.split(/\]\s+/,2)
+      phrases_found = h.to_a.flat_map do |raw_heading,v|
         
-        if raw_heading =~ / > / then
-          heading = raw_heading[/(?<=\[)[^\]]+/].split(' > ')[1..-1].join(' > ')
-          "[%s] %s" % [heading, phrase]
+        
+        # get rid of results which are almost duplicate (contain a 
+        # subset of text from the 1st result)
+        
+        phrases = v.map {|x| x[/\] +(.*)/,1]}
+        filtered_phrases = phrases[1..-1].reject {|x| phrases[0].include? x }
+
+        filtered_phrases.unshift(phrases[0])
+        
+        # get rid of the top level heading from the heading trailing
+        
+        heading = if raw_heading =~ / > / then
+          
+          raw_heading[1..-2].split(' > ')[1..-1]\
+              .join(' > ')          
         else
-          x
-        end
+          raw_heading[1..-2]
+        end        
         
+        filtered_phrases.map {|phrase| "[%s] %s" % [heading, phrase] }
+
       end
+      
+      
       results.concat phrases_found if phrases_found    
+      
     end
 
     results.take limit
