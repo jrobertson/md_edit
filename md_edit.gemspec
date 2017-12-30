@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = 'md_edit'
-  s.version = '0.2.3'
+  s.version = '0.2.4'
   s.summary = 'Find a section of a markdown document to edit using the ' + 
       'name of the heading'
   s.authors = ['James Robertson']

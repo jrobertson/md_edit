@@ -65,7 +65,7 @@ class MdEdit
   #
   def update(raw_value, heading: nil )
     
-    value = raw_value.gsub(/\r/,'')
+    value = raw_value.gsub(/\r/,'').chomp + "\n"
 
     title = (heading ? heading : value.lines.first.chomp)[/#+ +(.*)/,1]
 
@@ -179,8 +179,7 @@ class MdEdit
         
         heading = if raw_heading =~ / > / then
           
-          raw_heading[1..-2].split(' > ')[1..-1]\
-              .join(' > ')          
+          raw_heading[1..-2].split(' > ')[1..-1].join(' > ')
         else
           raw_heading[1..-2]
         end        
@@ -344,7 +343,7 @@ class MdEdit
 
         h[key] =  ["\n"] + r
 
-        [head, r]
+        [head + "\n", r]
 
       else
         x.flatten.join
@@ -353,7 +352,6 @@ class MdEdit
     end
 
   end
-
 
   def take_words(s, words: 8)
 
@@ -369,6 +367,4 @@ class MdEdit
 
   end
   
-
-
 end
