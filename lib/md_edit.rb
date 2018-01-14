@@ -37,15 +37,15 @@ class MdEdit
   
   def create(s)
         
-    @s << "\n\n" + s.sub(/^(?=\w)/,'## ').sub(/#+ [a-z]/){|x| x.upcase}\
-        .sub(/(?!=^\n)$/,"\n\n")
+    @s = @s.rstrip + "\n\n" + s.sub(/^(?=\w)/,'## ').sub(/#+ [a-z]/)\
+        {|x| x.upcase}.sub(/(?!=^\n)$/,"\n\n")
     load_sections(@s)        
     save()
     
     :created    
   end
   
-  # specify a heeading to delete a section
+  # specify a heading to delete a section
   #
   def delete(s)
     
@@ -111,14 +111,18 @@ class MdEdit
     
     results = []
     
-    r = @headingslookup.q s  
+    r = @headingslookup.q s
+    puts 'query() r: ' + r.inspect if @debug
     
     if r and r.any? then
       
       results = if full_trail then
         r
       else
-        r.map{|x| x.split(' > ')[1..-1].join(' > ')}.reject(&:empty?)
+        r.map do |x|
+          headings = x.split(' > ')
+          headings.length > 1 ? headings[1..-1].join(' > ') : headings[0]
+        end.reject(&:empty?)
       end
       
     end
@@ -281,7 +285,7 @@ class MdEdit
     h =  @sections.keys.inject({}) do |r,x|
       r.merge(x.sub(/^#+ +/,'').downcase => 5 - x.count('#'))
     end      
-
+    puts 'h: ' + h.inspect if @debug
     @headingslookup = PhraseLookup.new h
     @h = h.to_a.map {|k,v| [k.split(' > ').last, v]}.to_h
     @s = s 
